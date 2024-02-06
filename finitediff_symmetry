@@ -1,0 +1,47 @@
+% Input values
+clearvars
+vals = input("Enter the duct height, width in centimeters (ht, w): ");
+h = input("Enter mesh size h in centimeters: ");
+rho = input("Enter charge distribution (rho/epsilon): ");
+y = vals(1);
+x = vals(2);
+rows = ceil(y/h); %2
+cols = ceil(x/h); %3
+s = ceil(rows.*cols);
+
+% Create A matrix
+I = -4 * (eye(s));
+s = double(s);
+D1 = ones(s - 1, 1); % creates array of 1s for +-1st diagonal
+D1(cols:cols:s-1) = 0; % insert 0s when needed
+D2 = D1;
+D2(cols-1:cols:s) = 2; % 2s on right boundary
+I = I + diag(D1, 1); % add to matrix on 1st diagonal
+I = I + diag(D2, -1); % add to matrix on -1st diagonal
+
+
+edges = s - cols; % number of 1s for diagonal representing adjacent rows
+E1 = ceil(ones(edges, 1)); % creates array for 1s in adjacent rows
+E2 = ceil(E1);
+E2(end-cols+1:end, 1) = 2; % modify array to include 2s from symmetry
+I = I + diag(E1, cols); % add to matrix in [# of cols]th diagonal
+I = I + diag(E2, -cols); % add 2s to matrix in -[# of cols]th diagonal
+B(1:s, 1) = rho;
+
+% Solving for x matrix
+x = I\B;
+
+% Creating Mesh
+mesh = reshape(x, cols, rows); % takes solution and puts into original mesh
+mesh = mesh'; % takes transpose, since it is column wise
+for i = 1:rows-1
+    mesh(rows+i, :) = mesh(rows-i, :); % mirror mesh over y-axis
+end
+for i = 1:cols-1
+    mesh(:, cols+i) = mesh(:, cols-i); % mirror mesh over x-axis
+end
+
+mesh
+figure
+phidist = imagesc(mesh);
+[px py] = gradient(mesh);
