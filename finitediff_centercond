@@ -1,0 +1,92 @@
+clearvars; clc;
+
+% INPUT VALUES
+vals = input("Enter the duct height, width in meters (ht, w): ");
+h = input("Enter mesh size h in meters: ");
+V = input("Enter electric potentials [right, left, top, bottom]: ");
+dielec_int = input("Enter h (y position of dielectric interface)(m): "); 
+cc_potential = input("Enter Center Conductor Electric Potential (V): ");
+ms_w = input("Enter microstrip width (m): "); % microstrip length in meters
+
+% INITIAL VALUES
+rt = V(1);  % right bound V
+lft = V(2); % left bound V
+top = V(3); % top bound V
+bot = V(4); % bottom bound V
+y = vals(1); % y height of duct in m
+x = vals(2); % x height of duct in m
+rows = (y/h)-1; % number of rows of nodes  
+cols = (x/h)-1; % number of columns of nodes
+s = rows.*cols; % mesh size
+dielec_y = (y - dielec_int)/h; % dielectric interface nodes position
+ms_start_x = ((x/2) - (ms_w/2))/h; % x position of beginning of microstrip in mesh
+ms_end_x = ((x/2) + (ms_w/2))/h; % x position of end of microstrip in mesh
+mslength = (ms_end_x - ms_start_x); % length of microstrip in terms of nodes
+cc_rowstart = (cols*(dielec_y-1)) + ms_start_x; % position of c.c. in I begin
+cc_rowend = (cols*(dielec_y-1)) + ms_end_x; % position of c.c. in I end
+
+% CREATE A MATRIX
+I = -4 * (eye(s)); % initial -4 identity matrix
+D1 = ones(s - 1, 1); % creates array of 1s for +-1st diagonal
+D1(cols:cols:s-1) = 0; % insert 0s when needed
+I = I + diag(D1, 1); % add to matrix on 1st diagonal
+I = I + diag(D1, -1); % add to matrix on -1st diagonal
+edges = s - cols; % number of 1s for diagonal representing adjacent rows
+E1 = ones(edges, 1); % creates array for 1s in adjacent rows
+I = I + diag(E1, cols); % add to matrix in [# of cols]th diagonal
+I = I + diag(E1, -cols); % add to matrix in -[# of cols]th diagonal
+I(cc_rowstart:1:cc_rowend, :) = 0 % clears rows in I for c.c. nodes
+u = cc_rowstart; % inits cc_row_start value for while loop
+while u <= cc_rowstart + mslength %inserts 1s in I at c.c. nodes
+    I(u, u) = 1;
+    u = u + 1;
+end
+
+% B MATRIX
+B(1:cols:s, 1) = -lft; % left boundary
+B(cols:cols:s, 1) = -rt; % right boundary
+B(1:1:cols, 1) = B(1:1:cols) -top; % top boundary+overlapping l/r boundary
+B(s-cols+1:1:s, 1) = B(s-cols+1:1:s) -bot; % bottom bound+overlap l/r bound
+B(cc_rowstart:1:cc_rowend, :) = cc_potential; % 
+
+% SOLVING FOR X MATRIX
+xmat = I\B;
+
+% CREATING MESH
+mesh = reshape(xmat, cols, rows); % takes solution and puts into original mesh
+mesh = mesh'; % takes transpose, since it is column wise
+figure
+phidist = imagesc(mesh);
+
+
+
+
+
+
+
+% [px, py] = gradient(mesh)
+
+% cr = (x-ms_end_x/2)/h; % column
+% cl = (ms_start_x/2)/h; % column
+% ct = (y-dielec_y/2)/h; % row
+% cb = (dielec_y/2)/h; % row
+% % mesh(ct:cb,cr)
+% % mesh(ct, cl:cr)
+% % mesh(ct:cb, cl)
+% % mesh(cb, cl:cr)
+% 
+% for i = length(mesh(:,1))
+%     for j = length(mesh(1,:))
+%         if i == dielec_y & j == ms_start_x:ms_end_x
+%             p = cols*(i-1) + j
+%             empty = zeros(1, s)
+%             I(p, :) = empty
+%             I(p, p) = 1
+% 
+%         end
+%     end
+% end
+
+
+
+
